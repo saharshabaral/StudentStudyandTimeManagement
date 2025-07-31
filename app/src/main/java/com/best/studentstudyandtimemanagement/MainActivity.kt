@@ -1,5 +1,11 @@
 package com.best.studentstudyandtimemanagement
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.media.MediaPlayer
+import android.media.RingtoneManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -8,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,20 +22,36 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.best.studentstudyandtimemanagement.ui.theme.StudentStudyAndTimeManagementTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
+// Enum for screen navigation
 enum class Screen {
     LOGIN, SIGNUP, FORGOT_PASSWORD, HOME, PLAN_STUDY, TRACK_TASK
 }
 
+// Data class for tracking tasks
+data class TrackableTask(
+    val name: String,
+    val deadline: MutableState<Long>,
+    var isRunning: MutableState<Boolean> = mutableStateOf(false),
+    var elapsedTime: MutableState<Long> = mutableStateOf(0L),
+    var isCompleted: MutableState<Boolean> = mutableStateOf(false)
+)
+
 class MainActivity : ComponentActivity() {
+    private val CHANNEL_ID = "study_app_channel"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        createNotificationChannel()
         setContent {
             StudentStudyAndTimeManagementTheme {
                 var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
@@ -55,9 +78,35 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "StudyApp Notifications"
+            val descriptionText = "Notifications for deadlines and reminders"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun sendNotification(context: Context, title: String, message: String, notificationId: Int) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification) // Replace with your app icon resource
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        with(NotificationManagerCompat.from(context)) {
+            notify(notificationId, builder.build())
+        }
+    }
 }
 
-// ---- UI Screens ---- //
+// --- UI Screens ---
 
 @Composable
 fun LoginScreen(
@@ -267,6 +316,158 @@ fun StudyHomePage(
 }
 
 @Composable
+fun TrackTaskScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val mainActivity = (context as? MainActivity)
+    val taskList = remember { mutableStateListOf<TrackableTask>() }
+    var taskName by remember { mutableStateOf("") }
+    var deadlineInput by remember { mutableStateOf("") }
+    val mediaPlayer = remember { MediaPlayer.create(context, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)) }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+        Text("Track Tasks", style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = taskName,
+            onValueChange = { taskName = it },
+            label = { Text("Task Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = deadlineInput,
+            onValueChange = { deadlineInput = it },
+            label = { Text("Deadline (yyyy-MM-dd)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            if (taskName.isNotBlank() && deadlineInput.isNotBlank()) {
+                try {
+                    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val deadline = formatter.parse(deadlineInput)?.time ?: System.currentTimeMillis()
+                    taskList.add(TrackableTask(taskName, mutableStateOf(deadline)))
+                    taskName = ""
+                    deadlineInput = ""
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Invalid date format", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "Please fill task name and deadline", Toast.LENGTH_SHORT).show()
+            }
+        }, modifier = Modifier.fillMaxWidth()) {
+            Text("Add Task")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        taskList.forEachIndexed { index, task ->
+            TaskTimerItem(
+                task = task,
+                onTaskComplete = {
+                    mediaPlayer.start()
+                    Toast.makeText(context, "${task.name} marked completed!", Toast.LENGTH_SHORT).show()
+                },
+                onCheckDeadline = {
+                    val now = System.currentTimeMillis()
+                    val diff = task.deadline.value - now
+                    if (diff in 0..(2 * 24 * 3600 * 1000)) {  // Within 2 days
+                        mainActivity?.sendNotification(
+                            context,
+                            "Task Deadline Approaching",
+                            "Task '${task.name}' deadline is within 2 days!",
+                            notificationId = index
+                        )
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onBack, modifier = Modifier.align(Alignment.End)) {
+            Text("Back")
+        }
+    }
+}
+
+@Composable
+fun TaskTimerItem(
+    task: TrackableTask,
+    onTaskComplete: () -> Unit,
+    onCheckDeadline: () -> Unit
+) {
+    val timeDisplay = remember { mutableStateOf(formatTime(task.elapsedTime.value)) }
+
+    LaunchedEffect(task.isRunning.value) {
+        while (task.isRunning.value) {
+            delay(1000)
+            task.elapsedTime.value += 1000
+            if (task.elapsedTime.value >= 10_800_000L) { // 3 hours in ms
+                task.isRunning.value = false
+                task.isCompleted.value = true
+                onTaskComplete()
+            }
+            timeDisplay.value = formatTime(task.elapsedTime.value)
+            onCheckDeadline()
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = if (task.isCompleted.value) Color(0xFFD0F0C0) else Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(task.name, style = MaterialTheme.typography.titleMedium)
+            Text("Time spent: ${timeDisplay.value}", color = Color.Gray)
+            val deadlineStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(task.deadline.value))
+            Text("Deadline: $deadlineStr", color = Color.Red)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row {
+                Button(
+                    onClick = {
+                        if (!task.isRunning.value && !task.isCompleted.value && task.elapsedTime.value < 10_800_000L) {
+                            task.isRunning.value = true
+                        }
+                    },
+                    enabled = !task.isRunning.value && !task.isCompleted.value && task.elapsedTime.value < 10_800_000L
+                ) {
+                    Text("Start")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = { task.isRunning.value = false },
+                    enabled = task.isRunning.value
+                ) {
+                    Text("Stop")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        task.isRunning.value = false
+                        task.isCompleted.value = true
+                        onTaskComplete()
+                    },
+                    enabled = !task.isCompleted.value
+                ) {
+                    Text("Complete")
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun PlanStudyScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var taskName by remember { mutableStateOf("") }
@@ -330,121 +531,7 @@ fun PlanStudyScreen(onBack: () -> Unit) {
     }
 }
 
-// TrackableTask data class
-data class TrackableTask(
-    val name: String,
-    var isRunning: MutableState<Boolean> = mutableStateOf(false),
-    var elapsedTime: MutableState<Long> = mutableStateOf(0L)
-)
-
-
-@Composable
-fun TrackTaskScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
-    var newTaskName by remember { mutableStateOf("") }
-    val taskList = remember { mutableStateListOf<TrackableTask>() }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Track Your Tasks", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1E88E5))
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = newTaskName,
-            onValueChange = { newTaskName = it },
-            label = { Text("Enter task name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(onClick = {
-            if (newTaskName.isNotBlank()) {
-                taskList.add(TrackableTask(name = newTaskName))
-                newTaskName = ""
-            } else {
-                Toast.makeText(context, "Task name cannot be empty", Toast.LENGTH_SHORT).show()
-            }
-        }, modifier = Modifier.fillMaxWidth()) {
-            Text("Add Task")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        taskList.forEach { task ->
-            TaskTimerItem(task)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(onClick = onBack) {
-            Text("Back to Home")
-        }
-    }
-}
-
-@Composable
-fun TaskTimerItem(task: TrackableTask) {
-    val timeDisplay = remember { mutableStateOf(formatTime(task.elapsedTime.value)) }
-
-    LaunchedEffect(task.isRunning.value) {
-        while (task.isRunning.value) {
-            delay(1000)
-            task.elapsedTime.value += 1000
-            if (task.elapsedTime.value >= 10_800_000L) {
-                task.isRunning.value = false
-            }
-            timeDisplay.value = formatTime(task.elapsedTime.value)
-        }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(task.name, style = MaterialTheme.typography.titleMedium)
-            Text("Time spent: ${timeDisplay.value}", color = Color.Gray)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row {
-                Button(
-                    onClick = {
-                        if (!task.isRunning.value && task.elapsedTime.value < 10_800_000L) {
-                            task.isRunning.value = true
-                        }
-                    },
-                    enabled = !task.isRunning.value && task.elapsedTime.value < 10_800_000L
-                ) {
-                    Text("Start")
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = {
-                        task.isRunning.value = false
-                    },
-                    enabled = task.isRunning.value
-                ) {
-                    Text("Stop")
-                }
-            }
-        }
-    }
-}
-
-
-// Convert milliseconds to HH:MM:SS
+// Utility function to format time in HH:mm:ss
 fun formatTime(millis: Long): String {
     val totalSeconds = millis / 1000
     val hours = totalSeconds / 3600
@@ -452,4 +539,3 @@ fun formatTime(millis: Long): String {
     val seconds = totalSeconds % 60
     return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
-//testing git
