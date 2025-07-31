@@ -1,156 +1,3 @@
-//package com.best.studentstudyandtimemanagement
-//
-//import android.os.Bundle
-//
-//import android.widget.Toast
-//import androidx.activity.ComponentActivity
-//import androidx.activity.compose.setContent
-//import androidx.activity.enableEdgeToEdge
-//import androidx.compose.foundation.Image
-//import androidx.compose.foundation.background
-//import androidx.compose.foundation.clickable
-//import androidx.compose.foundation.layout.Arrangement
-//import androidx.compose.foundation.layout.Column
-//import androidx.compose.foundation.layout.Row
-//import androidx.compose.foundation.layout.fillMaxHeight
-//import androidx.compose.foundation.layout.fillMaxSize
-//import androidx.compose.foundation.layout.fillMaxWidth
-//import androidx.compose.foundation.layout.padding
-//import androidx.compose.foundation.layout.width
-//import androidx.compose.material3.Scaffold
-//import androidx.compose.material3.Text
-//import androidx.compose.ui.unit.dp
-//import androidx.compose.runtime.Composable
-//import androidx.compose.ui.Alignment
-//import androidx.compose.ui.Modifier
-//import androidx.compose.ui.graphics.Color
-//import androidx.compose.ui.platform.LocalContext
-//import androidx.compose.ui.res.painterResource
-//import androidx.compose.ui.tooling.preview.Preview
-//import androidx.compose.material3.Button
-//import androidx.compose.runtime.getValue
-//import androidx.compose.runtime.mutableStateOf
-//import androidx.compose.runtime.remember
-//import androidx.compose.runtime.setValue
-//import androidx.compose.foundation.layout.Spacer
-//import androidx.compose.foundation.layout.height
-//import com.best.studentstudyandtimemanagement.ui.theme.StudentStudyandTimeManagementTheme
-//
-//class MainActivity : ComponentActivity() {
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//        enableEdgeToEdge()
-//        setContent {
-//            StudentStudyandTimeManagementTheme {
-//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                    TestLayout(
-//                        name = "Android",
-//                        modifier = Modifier.padding(innerPadding),
-//                    )
-//                }
-//            }
-//        }
-//    }
-//}
-//
-//@Composable
-//fun TestLayout(name: String, modifier: Modifier = Modifier) {
-//    val context = LocalContext.current
-//    var result by remember { mutableStateOf(1) }
-//
-//    Row(
-//        modifier = modifier.fillMaxSize()
-//    ) {
-//        // Yellow Column
-//        Column(
-//            modifier = Modifier
-//                .fillMaxHeight()
-//                .width(100.dp)
-//                .background(Color.Yellow),
-//            verticalArrangement = Arrangement.SpaceBetween,
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            Column(
-//                modifier = Modifier.weight(1f),
-//                verticalArrangement = Arrangement.SpaceEvenly,
-//                horizontalAlignment = Alignment.CenterHorizontally
-//            ) {
-//                repeat(6) {
-//                    Image(
-//                        painter = painterResource(image_ids[it]),
-//                        contentDescription = "Dice ${it + 1}",
-//                        modifier = Modifier.clickable {
-//                            Toast.makeText(context, "Clicked dice ${it + 1}", Toast.LENGTH_SHORT).show()
-//                        }
-//                    )
-//                }
-//            }
-//
-//            Button(
-//                onClick = {
-//                    result = (1..6).random()
-//                    Toast.makeText(context, "You rolled a $result!", Toast.LENGTH_SHORT).show()
-//                },
-//                modifier = Modifier.padding(8.dp)
-//            ) {
-//                Text("Roll")
-//            }
-//        }
-//
-//        // Red Column
-//        Column(
-//            modifier = Modifier
-//                .fillMaxHeight()
-//                .width(100.dp)
-//                .background(Color.Red),
-//            verticalArrangement = Arrangement.Center,
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            Text(text = "Column 2")
-//        }
-//
-//        // Gray Column
-//        Column(
-//            modifier = Modifier
-//                .fillMaxHeight()
-//                .fillMaxWidth()
-//                .background(Color.Gray),
-//            verticalArrangement = Arrangement.Center,
-//            horizontalAlignment = Alignment.CenterHorizontally
-//        ) {
-//            Text(text = "Column 3")
-//            Spacer(modifier = Modifier.height(16.dp))
-//            Image(
-//                painter = painterResource(image_ids[result - 1]),
-//                contentDescription = "Rolled Dice"
-//            )
-//        }
-//    }
-//}
-//
-//// test another screen
-//@Composable
-//fun TestLoginScreeen(modifier: Modifier = Modifier){
-//
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun TestLayout() {
-//    StudentStudyandTimeManagementTheme  {
-//        TestLayout("Android")
-//    }
-//}
-//
-//private val image_ids = listOf(
-//    R.drawable.dice_1,
-//    R.drawable.dice_2,
-//    R.drawable.dice_3,
-//    R.drawable.dice_4,
-//    R.drawable.dice_5,
-//    R.drawable.dice_6
-//)
-
 package com.best.studentstudyandtimemanagement
 
 import android.os.Bundle
@@ -171,9 +18,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.best.studentstudyandtimemanagement.ui.theme.StudentStudyAndTimeManagementTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class Screen {
-    LOGIN, SIGNUP, FORGOT_PASSWORD, HOME
+    LOGIN, SIGNUP, FORGOT_PASSWORD, HOME, PLAN_STUDY, TRACK_TASK
 }
 
 class MainActivity : ComponentActivity() {
@@ -194,13 +43,21 @@ class MainActivity : ComponentActivity() {
                         )
                         Screen.SIGNUP -> SignupScreen(onBack = { currentScreen = Screen.LOGIN })
                         Screen.FORGOT_PASSWORD -> ForgotPasswordScreen(onBack = { currentScreen = Screen.LOGIN })
-                        Screen.HOME -> StudyHomePage(modifier = Modifier.padding(innerPadding))
+                        Screen.HOME -> StudyHomePage(
+                            modifier = Modifier.padding(innerPadding),
+                            onPlanStudyClick = { currentScreen = Screen.PLAN_STUDY },
+                            onTrackTaskClick = { currentScreen = Screen.TRACK_TASK }
+                        )
+                        Screen.PLAN_STUDY -> PlanStudyScreen(onBack = { currentScreen = Screen.HOME })
+                        Screen.TRACK_TASK -> TrackTaskScreen(onBack = { currentScreen = Screen.HOME })
                     }
                 }
             }
         }
     }
 }
+
+// ---- UI Screens ---- //
 
 @Composable
 fun LoginScreen(
@@ -223,7 +80,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(30.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.logincover), // Replace with your image file name
+            painter = painterResource(id = R.drawable.logincover),
             contentDescription = "Login Cover",
             modifier = Modifier
                 .height(200.dp)
@@ -232,11 +89,7 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Life Tracker",
-            style = MaterialTheme.typography.headlineLarge,
-            color = Color(0xFF1E88E5)
-        )
+        Text("Life Tracker", style = MaterialTheme.typography.headlineLarge, color = Color(0xFF1E88E5))
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -246,6 +99,7 @@ fun LoginScreen(
             label = { Text("Username") },
             modifier = Modifier.fillMaxWidth()
         )
+
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
@@ -254,19 +108,17 @@ fun LoginScreen(
             label = { Text("Password") },
             modifier = Modifier.fillMaxWidth()
         )
+
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                if (username.isNotBlank() && password.isNotBlank()) {
-                    Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
-                    onLoginSuccess()
-                } else {
-                    Toast.makeText(context, "Please fill in both fields", Toast.LENGTH_SHORT).show()
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Button(onClick = {
+            if (username.isNotBlank() && password.isNotBlank()) {
+                Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
+                onLoginSuccess()
+            } else {
+                Toast.makeText(context, "Please fill in both fields", Toast.LENGTH_SHORT).show()
+            }
+        }, modifier = Modifier.fillMaxWidth()) {
             Text("Login")
         }
 
@@ -281,7 +133,6 @@ fun LoginScreen(
         }
     }
 }
-
 
 @Composable
 fun SignupScreen(onBack: () -> Unit) {
@@ -305,6 +156,7 @@ fun SignupScreen(onBack: () -> Unit) {
             label = { Text("Email") },
             modifier = Modifier.fillMaxWidth()
         )
+
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
@@ -313,6 +165,7 @@ fun SignupScreen(onBack: () -> Unit) {
             label = { Text("Password") },
             modifier = Modifier.fillMaxWidth()
         )
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = {
@@ -343,6 +196,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Reset Password", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1E88E5))
+
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
@@ -351,6 +205,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
             label = { Text("Enter your email") },
             modifier = Modifier.fillMaxWidth()
         )
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = {
@@ -369,7 +224,11 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun StudyHomePage(modifier: Modifier = Modifier) {
+fun StudyHomePage(
+    modifier: Modifier = Modifier,
+    onPlanStudyClick: () -> Unit,
+    onTrackTaskClick: () -> Unit
+) {
     val context = LocalContext.current
 
     Column(
@@ -381,7 +240,7 @@ fun StudyHomePage(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            painter = painterResource(R.drawable.cover), // Add your own image in drawable folder
+            painter = painterResource(R.drawable.cover),
             contentDescription = "Study App Cover Image",
             modifier = Modifier
                 .fillMaxWidth()
@@ -391,15 +250,11 @@ fun StudyHomePage(modifier: Modifier = Modifier) {
         Text("Study & Time Management", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1E88E5))
         Text("Welcome back, Student!", style = MaterialTheme.typography.bodyLarge, color = Color.DarkGray)
 
-        Button(onClick = {
-            Toast.makeText(context, "Study Planner Coming Soon", Toast.LENGTH_SHORT).show()
-        }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onPlanStudyClick, modifier = Modifier.fillMaxWidth()) {
             Text("Plan Your Study")
         }
 
-        Button(onClick = {
-            Toast.makeText(context, "Task Tracker Coming Soon", Toast.LENGTH_SHORT).show()
-        }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onTrackTaskClick, modifier = Modifier.fillMaxWidth()) {
             Text("Track Tasks")
         }
 
@@ -411,15 +266,190 @@ fun StudyHomePage(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun DefaultPreview() {
-    StudentStudyAndTimeManagementTheme {
-        LoginScreen(
-            onLoginSuccess = {},
-            onSignUpClick = {},
-            onForgotPasswordClick = {}
+fun PlanStudyScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var taskName by remember { mutableStateOf("") }
+    var taskTime by remember { mutableStateOf("") }
+    var taskGoal by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Plan Your Study", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1E88E5))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = taskName,
+            onValueChange = { taskName = it },
+            label = { Text("What do you want to achieve?") },
+            modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = taskGoal,
+            onValueChange = { taskGoal = it },
+            label = { Text("Describe your goal") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = taskTime,
+            onValueChange = { taskTime = it },
+            label = { Text("When will you do it?") },
+            placeholder = { Text("e.g., 4 PM or Tomorrow 10 AM") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(onClick = {
+            if (taskName.isNotBlank() && taskTime.isNotBlank()) {
+                Toast.makeText(context, "Task Saved!", Toast.LENGTH_SHORT).show()
+                onBack()
+            } else {
+                Toast.makeText(context, "Please fill in the required fields", Toast.LENGTH_SHORT).show()
+            }
+        }, modifier = Modifier.fillMaxWidth()) {
+            Text("Save Task")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(onClick = onBack) {
+            Text("Back to Home")
+        }
     }
 }
-///testing git
+
+// TrackableTask data class
+data class TrackableTask(
+    val name: String,
+    var isRunning: MutableState<Boolean> = mutableStateOf(false),
+    var elapsedTime: MutableState<Long> = mutableStateOf(0L)
+)
+
+
+@Composable
+fun TrackTaskScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var newTaskName by remember { mutableStateOf("") }
+    val taskList = remember { mutableStateListOf<TrackableTask>() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Track Your Tasks", style = MaterialTheme.typography.headlineMedium, color = Color(0xFF1E88E5))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = newTaskName,
+            onValueChange = { newTaskName = it },
+            label = { Text("Enter task name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = {
+            if (newTaskName.isNotBlank()) {
+                taskList.add(TrackableTask(name = newTaskName))
+                newTaskName = ""
+            } else {
+                Toast.makeText(context, "Task name cannot be empty", Toast.LENGTH_SHORT).show()
+            }
+        }, modifier = Modifier.fillMaxWidth()) {
+            Text("Add Task")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        taskList.forEach { task ->
+            TaskTimerItem(task)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(onClick = onBack) {
+            Text("Back to Home")
+        }
+    }
+}
+
+@Composable
+fun TaskTimerItem(task: TrackableTask) {
+    val timeDisplay = remember { mutableStateOf(formatTime(task.elapsedTime.value)) }
+
+    LaunchedEffect(task.isRunning.value) {
+        while (task.isRunning.value) {
+            delay(1000)
+            task.elapsedTime.value += 1000
+            if (task.elapsedTime.value >= 10_800_000L) {
+                task.isRunning.value = false
+            }
+            timeDisplay.value = formatTime(task.elapsedTime.value)
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(task.name, style = MaterialTheme.typography.titleMedium)
+            Text("Time spent: ${timeDisplay.value}", color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row {
+                Button(
+                    onClick = {
+                        if (!task.isRunning.value && task.elapsedTime.value < 10_800_000L) {
+                            task.isRunning.value = true
+                        }
+                    },
+                    enabled = !task.isRunning.value && task.elapsedTime.value < 10_800_000L
+                ) {
+                    Text("Start")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        task.isRunning.value = false
+                    },
+                    enabled = task.isRunning.value
+                ) {
+                    Text("Stop")
+                }
+            }
+        }
+    }
+}
+
+
+// Convert milliseconds to HH:MM:SS
+fun formatTime(millis: Long): String {
+    val totalSeconds = millis / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d:%02d".format(hours, minutes, seconds)
+}
+//testing git
