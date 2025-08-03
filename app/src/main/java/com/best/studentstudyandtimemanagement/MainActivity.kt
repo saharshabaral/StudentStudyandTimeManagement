@@ -1,11 +1,15 @@
 package com.best.studentstudyandtimemanagement
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import android.os.Build
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.RingtoneManager
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -26,17 +30,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.best.studentstudyandtimemanagement.database.UserDatabase
+
+import com.best.studentstudyandtimemanagement.data.User
 import com.best.studentstudyandtimemanagement.ui.theme.StudentStudyAndTimeManagementTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Enum for screen navigation
 enum class Screen {
     LOGIN, SIGNUP, FORGOT_PASSWORD, HOME, PLAN_STUDY, TRACK_TASK
 }
 
-// Data class for tracking tasks
 data class TrackableTask(
     val name: String,
     val deadline: MutableState<Long>,
@@ -48,10 +56,28 @@ data class TrackableTask(
 class MainActivity : ComponentActivity() {
     private val CHANNEL_ID = "study_app_channel"
 
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         createNotificationChannel()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        val db = UserDatabase.getDatabase(applicationContext)
+
+        val userDao = db.userDao()
+
         setContent {
             StudentStudyAndTimeManagementTheme {
                 var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
@@ -62,9 +88,10 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding),
                             onLoginSuccess = { currentScreen = Screen.HOME },
                             onSignUpClick = { currentScreen = Screen.SIGNUP },
-                            onForgotPasswordClick = { currentScreen = Screen.FORGOT_PASSWORD }
+                            onForgotPasswordClick = { currentScreen = Screen.FORGOT_PASSWORD },
+                            userDao = userDao
                         )
-                        Screen.SIGNUP -> SignupScreen(onBack = { currentScreen = Screen.LOGIN })
+                        Screen.SIGNUP -> SignupScreen(onBack = { currentScreen = Screen.LOGIN }, userDao = userDao)
                         Screen.FORGOT_PASSWORD -> ForgotPasswordScreen(onBack = { currentScreen = Screen.LOGIN })
                         Screen.HOME -> StudyHomePage(
                             modifier = Modifier.padding(innerPadding),
@@ -95,7 +122,7 @@ class MainActivity : ComponentActivity() {
 
     fun sendNotification(context: Context, title: String, message: String, notificationId: Int) {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification) // Replace with your app icon resource
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -106,14 +133,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- UI Screens ---
-
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
     onLoginSuccess: () -> Unit,
     onSignUpClick: () -> Unit,
-    onForgotPasswordClick: () -> Unit
+    onForgotPasswordClick: () -> Unit,
+    userDao: com.best.studentstudyandtimemanagement.database.UserDao
 ) {
     val context = LocalContext.current
     var username by remember { mutableStateOf("") }
@@ -162,8 +188,19 @@ fun LoginScreen(
 
         Button(onClick = {
             if (username.isNotBlank() && password.isNotBlank()) {
-                Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
-                onLoginSuccess()
+                CoroutineScope(Dispatchers.IO).launch {
+                    val user = userDao.getUserByEmail(username)
+                    if (user != null && user.password == password) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
+                            onLoginSuccess()
+                        }
+                    } else {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            Toast.makeText(context, "Invalid credentials", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             } else {
                 Toast.makeText(context, "Please fill in both fields", Toast.LENGTH_SHORT).show()
             }
@@ -184,7 +221,7 @@ fun LoginScreen(
 }
 
 @Composable
-fun SignupScreen(onBack: () -> Unit) {
+fun SignupScreen(onBack: () -> Unit, userDao: com.best.studentstudyandtimemanagement.database.UserDao) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -218,8 +255,17 @@ fun SignupScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = {
-            Toast.makeText(context, "Account created!", Toast.LENGTH_SHORT).show()
-            onBack()
+            if (email.isNotBlank() && password.isNotBlank()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    userDao.insertUser(User(email = email, password = password))
+                    CoroutineScope(Dispatchers.Main).launch {
+                        Toast.makeText(context, "Account created!", Toast.LENGTH_SHORT).show()
+                        onBack()
+                    }
+                }
+            } else {
+                Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+            }
         }, modifier = Modifier.fillMaxWidth()) {
             Text("Sign Up")
         }
@@ -230,6 +276,7 @@ fun SignupScreen(onBack: () -> Unit) {
             Text("Back to Login")
         }
     }
+
 }
 
 @Composable
@@ -539,3 +586,4 @@ fun formatTime(millis: Long): String {
     val seconds = totalSeconds % 60
     return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
+//added features in track tasks
