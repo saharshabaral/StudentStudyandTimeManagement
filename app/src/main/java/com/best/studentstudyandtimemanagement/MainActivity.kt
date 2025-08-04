@@ -96,7 +96,8 @@ class MainActivity : ComponentActivity() {
                         Screen.HOME -> StudyHomePage(
                             modifier = Modifier.padding(innerPadding),
                             onPlanStudyClick = { currentScreen = Screen.PLAN_STUDY },
-                            onTrackTaskClick = { currentScreen = Screen.TRACK_TASK }
+                            onTrackTaskClick = { currentScreen = Screen.TRACK_TASK },
+                            onLogoutClick = { currentScreen = Screen.LOGIN }
                         )
                         Screen.PLAN_STUDY -> PlanStudyScreen(onBack = { currentScreen = Screen.HOME })
                         Screen.TRACK_TASK -> TrackTaskScreen(onBack = { currentScreen = Screen.HOME })
@@ -323,7 +324,8 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
 fun StudyHomePage(
     modifier: Modifier = Modifier,
     onPlanStudyClick: () -> Unit,
-    onTrackTaskClick: () -> Unit
+    onTrackTaskClick: () -> Unit,
+    onLogoutClick: () -> Unit // 🔴 NEW PARAMETER
 ) {
     val context = LocalContext.current
 
@@ -359,8 +361,24 @@ fun StudyHomePage(
         }, modifier = Modifier.fillMaxWidth()) {
             Text("Time Reminders")
         }
+
+        // Separator
+        Divider(color = Color.LightGray, thickness = 1.dp)
+
+        // 🔴 LOGOUT BUTTON
+        Button(
+            onClick = {
+                Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
+                onLogoutClick()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Logout")
+        }
+
     }
 }
+
 
 @Composable
 fun TrackTaskScreen(onBack: () -> Unit) {
