@@ -72,6 +72,12 @@ dependencies {
 
     // ✅ Room with Kotlin Coroutines
     implementation("androidx.room:room-ktx:2.6.1")
+
+    //Room Testing
+    testImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
+
+
 }
 
 
